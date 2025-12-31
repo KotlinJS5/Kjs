@@ -1,8 +1,8 @@
 // Moviesdrive Scraper for Nuvio Local Scrapers
 // React Native compatible version with full original functionality
 
-const cheerio = require('cheerio-without-node-native');
-
+const cheerio = require('cheerio');
+//-without-node-native
 
 // TMDB API Configuration
 const TMDB_API_KEY = '439c478a771f35c05022f9feabcca01c';
@@ -1330,7 +1330,7 @@ function getStreams(tmdbId, mediaType = 'movie', season = null, episode = null) 
 
                 const streams = filteredLinks
                     .filter(function (link) {
-                        return typeof link.quality === 'number' && link.quality > 0;
+                        return link && link.url;
                     })
                     .map(function (link) {
                         let mediaTitle;
