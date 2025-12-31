@@ -725,7 +725,7 @@ function getDownloadLinks(mediaUrl) {
             const isMovie = typeRaw.toLowerCase().includes('movie');
 
             // Extract title and season number like in Kotlin code
-            const title = $('figcaption"]').text();
+            const title = $('figcaption').text();
             const seasonMatch = title.match(/\bSeason\s*(\d+)\b/i);
             const seasonNumber = seasonMatch ? parseInt(seasonMatch[1]) : null;
 
