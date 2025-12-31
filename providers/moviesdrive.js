@@ -438,44 +438,80 @@ function hubDriveExtractor(url, referer) {
         .catch(() => []);
 }
 
+
 function hubCloudExtractor(url, referer) {
     let currentUrl = url;
+
     // Replicate domain change logic from HubCloud extractor
     if (currentUrl.includes("hubcloud.ink")) {
         currentUrl = currentUrl.replace("hubcloud.ink", "hubcloud.dad");
     }
 
-    return fetch(currentUrl, { headers: { ...HEADERS, Referer: referer } })
-        .then(pageResponse => pageResponse.text())
-        .then(pageData => {
-            let finalUrl = currentUrl;
+    if (/\/(video|drive)\//i.test(currentUrl)) {
+        return fetch(currentUrl, {
+            headers: { ...HEADERS, Referer: referer }
+        })
+            .then(r => r.text())
+            .then(html => {
+                const $ = cheerio.load(html);
 
-            if (!currentUrl.includes("hubcloud.php")) {
+                // Extract "Generate Direct Download Link"
+                const hubPhp = $('a[href*="hubcloud.php"]').attr('href');
+                if (!hubPhp) return [];
+
+                // Consume hubcloud.php internally
+                return hubCloudExtractor(hubPhp, currentUrl);
+            })
+            .catch(() => []);
+    }
+
+
+    const initialFetch = currentUrl.includes("hubcloud.php")
+        ? fetch(currentUrl, {
+            headers: { ...HEADERS, Referer: referer },
+            redirect: "follow"
+        }).then(response =>
+            response.text().then(html => ({
+                pageData: html,
+                finalUrl: response.url || currentUrl
+            }))
+        )
+        : fetch(currentUrl, {
+            headers: { ...HEADERS, Referer: referer }
+        })
+            .then(r => r.text())
+            .then(pageData => {
+                let finalUrl = currentUrl;
                 const scriptUrlMatch = pageData.match(/var url = '([^']*)'/);
                 if (scriptUrlMatch && scriptUrlMatch[1]) {
                     finalUrl = scriptUrlMatch[1];
-                    return fetch(finalUrl, { headers: { ...HEADERS, Referer: currentUrl } })
-                        .then(secondResponse => secondResponse.text())
-                        .then(secondData => ({ pageData: secondData, finalUrl }));
+                    return fetch(finalUrl, {
+                        headers: { ...HEADERS, Referer: currentUrl }
+                    })
+                        .then(r => r.text())
+                        .then(secondData => ({
+                            pageData: secondData,
+                            finalUrl
+                        }));
                 }
-            }
-            return { pageData, finalUrl };
-        })
+                return { pageData, finalUrl };
+            });
+
+    return initialFetch
         .then(({ pageData, finalUrl }) => {
             const $ = cheerio.load(pageData);
+
             const size = $('i#size').text().trim();
             const header = $('div.card-header').text().trim();
 
-            // Use the same quality detection logic as Kotlin code
             const getIndexQuality = (str) => {
                 const match = (str || '').match(/(\d{3,4})[pP]/);
-                return match ? parseInt(match[1]) : 2160; // Default to 4K if not found
+                return match ? parseInt(match[1]) : 2160;
             };
 
             const quality = getIndexQuality(header);
             const headerDetails = cleanTitle(header);
 
-            // Build label extras like in Kotlin code
             const labelExtras = (() => {
                 let extras = '';
                 if (headerDetails) extras += `[${headerDetails}]`;
@@ -483,66 +519,101 @@ function hubCloudExtractor(url, referer) {
                 return extras;
             })();
 
-            // Convert human-readable size to bytes for consistency
             const sizeInBytes = (() => {
                 if (!size) return 0;
-                const sizeMatch = size.match(/([\d.]+)\s*(GB|MB|KB)/i);
-                if (!sizeMatch) return 0;
-
-                const value = parseFloat(sizeMatch[1]);
-                const unit = sizeMatch[2].toUpperCase();
-
-                if (unit === 'GB') return value * 1024 * 1024 * 1024;
-                if (unit === 'MB') return value * 1024 * 1024;
-                if (unit === 'KB') return value * 1024;
+                const m = size.match(/([\d.]+)\s*(GB|MB|KB)/i);
+                if (!m) return 0;
+                const v = parseFloat(m[1]);
+                if (m[2].toUpperCase() === 'GB') return v * 1024 ** 3;
+                if (m[2].toUpperCase() === 'MB') return v * 1024 ** 2;
+                if (m[2].toUpperCase() === 'KB') return v * 1024;
                 return 0;
             })();
 
             const links = [];
             const elements = $('a.btn[href]').get();
 
-            // Process each element, converting async operations to promises
-            const processElements = elements.map(element => {
-                const link = $(element).attr('href');
-                const text = $(element).text();
+            const processElements = elements.map(el => {
+                const link = $(el).attr('href');
+                const text = $(el).text();
 
-                // Use the actual file name from the HubCloud page header (full name, not cleaned)
+                if (/telegram/i.test(text) || /telegram/i.test(link)) {
+                    return Promise.resolve();
+                }
+
+                console.log(`[HubCloud] Found ${text} link ${link}`);
+
                 const fileName = header || headerDetails || 'Unknown';
+
                 if (text.includes("Download File")) {
-                    links.push({ source: `HubCloud ${labelExtras}`, quality, url: link, size: sizeInBytes, fileName });
+                    links.push({
+                        source: `HubCloud ${labelExtras}`,
+                        quality,
+                        url: link,
+                        size: sizeInBytes,
+                        fileName
+                    });
                     return Promise.resolve();
-                } else if (text.includes("FSL V2")) {
-                    links.push({ source: `HubCloud - FSL V2 Server ${labelExtras}`, quality, url: link, size: sizeInBytes, fileName });
+                }
+
+                if (text.includes("FSL V2")) {
+                    links.push({
+                        source: `HubCloud - FSL V2 Server ${labelExtras}`,
+                        quality,
+                        url: link,
+                        size: sizeInBytes,
+                        fileName
+                    });
                     return Promise.resolve();
-                } else if (text.includes("FSL")) {
-                    links.push({ source: `HubCloud - FSL Server ${labelExtras}`, quality, url: link, size: sizeInBytes, fileName });
+                }
+
+                if (text.includes("FSL")) {
+                    links.push({
+                        source: `HubCloud - FSL Server ${labelExtras}`,
+                        quality,
+                        url: link,
+                        size: sizeInBytes,
+                        fileName
+                    });
                     return Promise.resolve();
-                } else if (text.includes("S3 Server")) {
-                    links.push({ source: `HubCloud - S3 Server ${labelExtras}`, quality, url: link, size: sizeInBytes, fileName });
+                }
+
+                if (text.includes("S3 Server")) {
+                    links.push({
+                        source: `HubCloud - S3 Server ${labelExtras}`,
+                        quality,
+                        url: link,
+                        size: sizeInBytes,
+                        fileName
+                    });
                     return Promise.resolve();
-                } else if (text.includes("BuzzServer")) {
+                }
+
+                if (text.includes("BuzzServer")) {
                     return fetch(`${link}/download`, {
                         method: 'GET',
                         headers: { ...HEADERS, Referer: link },
-                        redirect: 'manual' // Do not follow redirects automatically
+                        redirect: 'manual'
                     })
-                        .then(buzzResp => {
-                            if (buzzResp.status >= 300 && buzzResp.status < 400) {
-                                // It's a redirect, get the location header
-                                const location = buzzResp.headers.get('location');
-                                if (location && location.includes('hx-redirect=')) {
-                                    const hxRedirectMatch = location.match(/hx-redirect=([^&]+)/);
-                                    if (hxRedirectMatch) {
-                                        const dlink = decodeURIComponent(hxRedirectMatch[1]);
-                                        links.push({ source: `HubCloud - BuzzServer ${labelExtras}`, quality, url: dlink, size: sizeInBytes, fileName });
-                                    }
+                        .then(resp => {
+                            if (resp.status >= 300 && resp.status < 400) {
+                                const loc = resp.headers.get('location');
+                                const m = loc?.match(/hx-redirect=([^&]+)/);
+                                if (m) {
+                                    links.push({
+                                        source: `HubCloud - BuzzServer ${labelExtras}`,
+                                        quality,
+                                        url: decodeURIComponent(m[1]),
+                                        size: sizeInBytes,
+                                        fileName
+                                    });
                                 }
                             }
                         })
-                        .catch(e => {
-                            console.error("[HubCloud] BuzzServer redirect failed for", link, e.message);
-                        });
-                } else if (link.includes("pixeldra")) {
+                        .catch(() => { });
+                }
+
+                if (link.includes("pixeldra")) {
                     return pixelDrainExtractor(link)
                         .then(extracted => {
                             links.push(...extracted.map(l => ({
@@ -553,54 +624,51 @@ function hubCloudExtractor(url, referer) {
                             })));
                         })
                         .catch(() => { });
-                } else if (text.includes("10Gbps")) {
-                    let currentRedirectUrl = link;
+                }
+
+                if (text.includes("10Gbps")) {
+                    let redirectUrl = link;
                     let finalLink = null;
 
-                    const processRedirects = (i) => {
+                    const walk = (i) => {
                         if (i >= 5) return Promise.resolve(finalLink);
-
-                        return fetch(currentRedirectUrl, {
-                            method: 'GET',
-                            redirect: 'manual' // Don't follow redirects automatically
-                        })
-                            .then(response => {
-                                if (response.status >= 300 && response.status < 400) {
-                                    const location = response.headers.get('location');
-                                    if (location) {
-                                        if (location.includes("link=")) {
-                                            finalLink = location.substring(location.indexOf("link=") + 5);
-                                            return finalLink;
-                                        }
-                                        currentRedirectUrl = new URL(location, currentRedirectUrl).toString();
-                                        return processRedirects(i + 1);
+                        return fetch(redirectUrl, { redirect: 'manual' })
+                            .then(r => {
+                                if (r.status >= 300 && r.status < 400) {
+                                    const loc = r.headers.get('location');
+                                    if (loc?.includes("link=")) {
+                                        finalLink = loc.split("link=")[1];
+                                        return finalLink;
                                     }
+                                    if (loc) redirectUrl = new URL(loc, redirectUrl).toString();
+                                    return walk(i + 1);
                                 }
                                 return finalLink;
                             })
-                            .catch(e => {
-                                console.error("[HubCloud] 10Gbps redirect failed for", currentRedirectUrl, e.message);
-                                return finalLink;
-                            });
+                            .catch(() => finalLink);
                     };
 
-                    return processRedirects(0).then(finalLink => {
-                        if (finalLink) {
-                            links.push({ source: `HubCloud - 10Gbps ${labelExtras}`, quality, url: finalLink, size: sizeInBytes, fileName });
+                    return walk(0).then(dlink => {
+                        if (dlink) {
+                            links.push({
+                                source: `HubCloud - 10Gbps ${labelExtras}`,
+                                quality,
+                                url: dlink,
+                                size: sizeInBytes,
+                                fileName
+                            });
                         }
                     });
-                } else {
-                    // For other buttons, try the generic extractor
-                    return loadExtractor(link, finalUrl).then(extracted => {
-                        links.push(...extracted);
-                    });
                 }
+
+                return loadExtractor(link, finalUrl).then(r => links.push(...r));
             });
 
             return Promise.all(processElements).then(() => links);
         })
         .catch(() => []);
 }
+
 
 
 async function gdFlixExtractor(url, referer = null) {
@@ -748,14 +816,14 @@ async function gdFlixExtractor(url, referer = null) {
             /* PIXELDRAIN */
             else if (text.includes('pixel')) {
                 return pixelDrainExtractor(link)
-                        .then(extracted => {
-                            links.push(...extracted.map(l => ({
-                                ...l,
-                                quality: typeof l.quality === 'number' ? l.quality : quality,
-                                size: l.size || sizeInBytes,
-                                fileName
-                            })));
-                        }).catch(() => { });
+                    .then(extracted => {
+                        links.push(...extracted.map(l => ({
+                            ...l,
+                            quality: typeof l.quality === 'number' ? l.quality : quality,
+                            size: l.size || sizeInBytes,
+                            fileName
+                        })));
+                    }).catch(() => { });
             }
         }
     } catch { }
@@ -855,15 +923,15 @@ function loadExtractor(url, referer = MAIN_URL) {
         return Promise.resolve([]);
     }
     if (
-    hostname.includes('google.') ||
-    hostname.includes('ampproject.org') ||
-    hostname.includes('gstatic.') ||
-    hostname.includes('doubleclick.') ||
-    hostname.includes('ddl2')
-) {
-    console.warn('[Moviesdrive] Blocked redirect host:', hostname);
-    return Promise.resolve([]);
-}
+        hostname.includes('google.') ||
+        hostname.includes('ampproject.org') ||
+        hostname.includes('gstatic.') ||
+        hostname.includes('doubleclick.') ||
+        hostname.includes('ddl2')
+    ) {
+        console.warn('[Moviesdrive] Blocked redirect host:', hostname);
+        return Promise.resolve([]);
+    }
 
 
     // Default case for unknown extractors, use the hostname as the source.
