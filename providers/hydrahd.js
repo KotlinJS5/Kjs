@@ -31,8 +31,8 @@ function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
                         const cheerio = require('cheerio-without-node-native');
                         const $ = cheerio.load(html);
 
-                        // Strong selector for movie links: starts with /movie/
-                        let pagePath = $('a[href^="/movie/"]').first().attr('href');
+                        let pagePath = $('a[href^="/movie/"]').first().attr('href') ||
+                                       $('a[href^="/watchseries/"]').first().attr('href');
 
                         if (!pagePath) return resolve([]);
 
@@ -44,27 +44,52 @@ function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
                                 const $page = cheerio.load(pageHtml);
                                 const streams = [];
 
-                                // Grab all iframes – the main player is usually the largest or first iframe with embed/player src
-                                $('iframe').each((i, el) => {
-                                    let src = $(el).attr('src') || $(el).attr('data-src') || '';
-                                    if (src) {
-                                        if (src.startsWith('//')) src = 'https:' + src;
-                                        if (!src.startsWith('http')) src = BASE_URL + src;
+                                // Find the main player iframe
+                                let iframeSrc = $('iframe[src*="player"], iframe[src*="embed"], iframe#main-player, iframe').first().attr('src') ||
+                                                $('iframe').first().attr('src');
 
-                                        if (src.includes('player') || src.includes('embed') || src.includes('video') || src.includes('.m3u8') || src.includes('.mp4')) {
+                                if (!iframeSrc) return resolve([]);
+
+                                if (iframeSrc.startsWith('//')) iframeSrc = 'https:' + iframeSrc;
+                                if (!iframeSrc.startsWith('http')) iframeSrc = BASE_URL + iframeSrc;
+
+                                // Now fetch INSIDE the iframe to get the real stream URLs
+                                fetch(iframeSrc, { headers: { ...HEADERS, 'Referer': fullPageUrl } })
+                                    .then(res => res.text())
+                                    .then(iframeHtml => {
+                                        const $iframe = cheerio.load(iframeHtml);
+
+                                        // Extract direct HLS/MP4 sources
+                                        \( iframe('source[src], video[src], a[href \)=".m3u8"], a[href$=".mp4"]').each((i, el) => {
+                                            let src = $iframe(el).attr('src') || $iframe(el).attr('href');
+                                            if (src && (src.includes('.m3u8') || src.includes('.mp4'))) {
+                                                if (!src.startsWith('http')) src = new URL(src, iframeSrc).href;
+
+                                                streams.push({
+                                                    name: `HydraHD Server ${i + 1}`,
+                                                    title: `${title} \( {year ? `( \){year})` : ''} \( {seasonNum ? `S \){String(seasonNum).padStart(2,'0')}E${String(episodeNum).padStart(2,'0')}` : ''}`,
+                                                    url: src,
+                                                    quality: src.includes('1080') ? '1080p' : src.includes('720') ? '720p' : 'HD',
+                                                    headers: HEADERS,
+                                                    provider: 'hydrahd'
+                                                });
+                                            }
+                                        });
+
+                                        // Fallback: any script with .m3u8 links (common)
+                                        iframeHtml.match(/https?:\/\/[^\s"']+\.m3u8/g || []).forEach(m3u8 => {
                                             streams.push({
-                                                name: 'HydraHD',
-                                                title: `${title} \( {year ? `( \){year})` : ''} \( {seasonNum ? `S \){String(seasonNum).padStart(2,'0')}E${String(episodeNum).padStart(2,'0')}` : ''}`,
-                                                url: src,
-                                                quality: 'HD/1080p (Adaptive)',
+                                                name: 'HydraHD HLS',
+                                                url: m3u8,
+                                                quality: 'HD/Adaptive',
                                                 headers: HEADERS,
                                                 provider: 'hydrahd'
                                             });
-                                        }
-                                    }
-                                });
+                                        });
 
-                                resolve(streams.length > 0 ? streams : []);
+                                        resolve(streams.length > 0 ? streams : []);
+                                    })
+                                    .catch(() => resolve([]));
                             })
                             .catch(() => resolve([]));
                     })
