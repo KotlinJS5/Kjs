@@ -1,11 +1,11 @@
 {
-  "name": "Phisher's Repo",
+  "name": "Kjs Repo",
   "version": "1.0.0",
   "scrapers": [
     {
       "id": "MoviesDrive",
       "name": "MoviesDrive",
-      "description": "MoviesDrive streaming with multiple quality options and versions",
+      "description": "Direct HD downloads with multiple quality options and servers",
       "version": "1.0.0",
       "author": "Nuvio Team",
       "supportedTypes": ["movie", "tv"],
@@ -13,20 +13,20 @@
       "enabled": true,
       "formats": ["mp4", "mkv"],
       "logo": "https://i.imgur.com/9bGkGMi.png",
-      "contentLanguage": ["en"]
+      "contentLanguage": ["en", "hi", "ta", "te"]
     },
     {
-      "id": "hydrahd",
-      "name": "HydraHD",
-      "description": "HD streams from hydrahd.ru (movies & series, multiple qualities)",
+      "id": "hdhub4u",
+      "name": "HDHub4u",
+      "description": "Direct HD downloads (480p/720p/1080p/4K, multi servers like GDrive)",
       "version": "1.0.0",
       "author": "KotlinJS5",
       "supportedTypes": ["movie", "tv"],
-      "filename": "providers/hydrahd.js",
+      "filename": "providers/hdhub4u.js",
       "enabled": true,
-      "formats": ["hls", "mp4"],
-      "logo": "https://hydrahd.ru/favicon.ico",
-      "contentLanguage": ["en", "ru"]
+      "formats": ["mp4", "mkv"],
+      "logo": "https://new1.hdhub4u.fo/favicon.ico",
+      "contentLanguage": ["en", "hi", "ta", "te"]
     }
   ]
 }
