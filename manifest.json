@@ -8,20 +8,25 @@
       "description": "MoviesDrive streaming with multiple quality options and versions",
       "version": "1.0.0",
       "author": "Nuvio Team",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
+      "supportedTypes": ["movie", "tv"],
       "filename": "providers/moviesdrive.js",
       "enabled": true,
-      "formats": [
-        "mp4",
-        "mkv"
-      ],
+      "formats": ["mp4", "mkv"],
       "logo": "https://i.imgur.com/9bGkGMi.png",
-      "contentLanguage": [
-        "en"
-      ]
+      "contentLanguage": ["en"]
+    },
+    {
+      "id": "hydrahd",
+      "name": "HydraHD",
+      "description": "HD streams from hydrahd.ru (movies & series, multiple qualities)",
+      "version": "1.0.0",
+      "author": "KotlinJS5",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/hydrahd.js",
+      "enabled": true,
+      "formats": ["hls", "mp4"],
+      "logo": "https://hydrahd.ru/favicon.ico",
+      "contentLanguage": ["en", "ru"]
     }
   ]
 }
