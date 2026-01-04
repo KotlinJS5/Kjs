@@ -8,13 +8,7 @@ const HEADERS = {
 
 function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
     return new Promise((resolve) => {
-        // REPLACE WITH YOUR REAL TMDB API KEY (get free at https://www.themoviedb.org/settings/api)
-        const TMDB_API_KEY = 'YOUR_TMDB_API_KEY_HERE';
-
-        if (!TMDB_API_KEY || TMDB_API_KEY === 'YOUR_TMDB_API_KEY_HERE') {
-            resolve([]);
-            return;
-        }
+        const TMDB_API_KEY = '362a46436db0874d9701e83eaaace8aa';
 
         const titleFetchUrl = mediaType === 'movie'
             ? `https://api.themoviedb.org/3/movie/\( {tmdbId}?api_key= \){TMDB_API_KEY}`
@@ -37,13 +31,12 @@ function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
                         const cheerio = require('cheerio-without-node-native');
                         const $ = cheerio.load(html);
 
-                        // Better selectors: look for common result links (titles, posters, or direct slugs)
-                        // Site uses <a> with href like /movie/ID-title-online or similar
-                        let pagePath = $('a[href^="/movie/"], a[href^="/watchseries/"], a.title, a.poster-link, div.item a').first().attr('href');
+                        // Strong selector for movie links: starts with /movie/
+                        let pagePath = $('a[href^="/movie/"]').first().attr('href');
 
                         if (!pagePath) return resolve([]);
 
-                        const fullPageUrl = pagePath.startsWith('http') ? pagePath : BASE_URL + pagePath;
+                        const fullPageUrl = BASE_URL + pagePath;
 
                         fetch(fullPageUrl, { headers: HEADERS })
                             .then(res => res.text())
@@ -51,17 +44,19 @@ function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
                                 const $page = cheerio.load(pageHtml);
                                 const streams = [];
 
-                                // Primary: iframes in player area
-                                $('iframe[src], iframe[data-src]').each((i, el) => {
+                                // Grab all iframes – the main player is usually the largest or first iframe with embed/player src
+                                $('iframe').each((i, el) => {
                                     let src = $(el).attr('src') || $(el).attr('data-src') || '';
                                     if (src) {
-                                        if (!src.startsWith('http')) src = 'https:' + src || BASE_URL + src;
-                                        if (src.includes('player') || src.includes('embed') || src.includes('.m3u8')) {
+                                        if (src.startsWith('//')) src = 'https:' + src;
+                                        if (!src.startsWith('http')) src = BASE_URL + src;
+
+                                        if (src.includes('player') || src.includes('embed') || src.includes('video') || src.includes('.m3u8') || src.includes('.mp4')) {
                                             streams.push({
-                                                name: 'HydraHD Main',
-                                                title: `${title} \( {year ? `( \){year})` : ''} \( {seasonNum ? `S \){seasonNum.padStart(2, '0')}E${episodeNum.padStart(2, '0')}` : ''}`,
+                                                name: 'HydraHD',
+                                                title: `${title} \( {year ? `( \){year})` : ''} \( {seasonNum ? `S \){String(seasonNum).padStart(2,'0')}E${String(episodeNum).padStart(2,'0')}` : ''}`,
                                                 url: src,
-                                                quality: 'HD', // Often auto/adaptive; can improve later
+                                                quality: 'HD/1080p (Adaptive)',
                                                 headers: HEADERS,
                                                 provider: 'hydrahd'
                                             });
@@ -69,12 +64,14 @@ function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
                                     }
                                 });
 
-                                // Fallback: video sources or other embeds
-                                $('video source[src], video[src]').each((i, el) => {
-                                    let src = $(el).attr('src');
-                                    if (src && (src.includes('.m3u8') || src.includes('.mp4'))) {
-                                        if (!src.startsWith('http')) src = BASE_URL + src;
-                                        streams.push({
-                                            name: 'HydraHD Direct',
-                                            url: src,
-                                            quality: src.includes('1080') ? '1080p' : src.includes('720') ? '720p' :
+                                resolve(streams.length > 0 ? streams : []);
+                            })
+                            .catch(() => resolve([]));
+                    })
+                    .catch(() => resolve([]));
+            })
+            .catch(() => resolve([]));
+    });
+}
+
+module.exports = { getStreams };
