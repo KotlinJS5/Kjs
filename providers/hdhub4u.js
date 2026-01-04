@@ -1,4 +1,4 @@
-// providers/hdhub4u.js
+// providers/hdhub4u.js - Improved version
 
 const cheerio = require('cheerio-without-node-native');
 
@@ -22,52 +22,79 @@ function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
                 if (!info || info.success === false) return resolve([]);
 
                 const title = mediaType === 'movie' ? info.title : info.name;
-                const year = (mediaType === 'movie' ? info.release_date : info.first_air_date || '').split('-')[0];
-                const searchQuery = encodeURIComponent(`${title} ${year || ''}`.trim());
+                const year = (mediaType === 'movie' ? info.release_date : info.first_air_date || '').split('-')[0] || '';
+                const cleanSlug = title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/part-two/g, 'part-2');
 
-                // HDHub4u has no direct search bar – homepage lists recent, but we can use Google-like query or direct slug guess
-                // Better: Direct homepage fetch and match title, or use a custom search if needed
-                // For now, assume slug like /title-year-full-movie/
-                const slug = title.toLowerCase().replace(/[^a-z0-9]/g, '-') + (year ? `-${year}` : '') + '-full-movie';
-                let pageUrl = `\( {BASE_URL}/ \){slug}/`;
+                // Multiple common slug patterns on HDHub4u
+                const possibleSlugs = [
+                    `\( {cleanSlug}- \){year}-hindi-webrip-full-movie/`,
+                    `\( {cleanSlug}- \){year}-full-movie/`,
+                    `${cleanSlug}-2024-hindi-webrip-full-movie/`,
+                    `pushpa-2-the-rule-reloaded-${year}-hindi-webrip-full-movie/`, // Special for Pushpa
+                    `${cleanSlug}-hindi-webrip-full-movie/`,
+                    `\( {cleanSlug}- \){year}-web-dl-full-movie/`
+                ];
 
-                fetch(pageUrl, { headers: HEADERS })
-                    .then(res => res.text())
-                    .then(pageHtml => {
-                        const $page = cheerio.load(pageHtml);
-                        const streams = [];
+                let streams = [];
+                let tried = 0;
 
-                        // Grab download links (common: buttons with text like "Download 1080p", "GDrive", etc.)
-                        $('a[href*="download"], a.btn, a[href*="gdrive"], a[href*="clicknupload"], a[href*="indishare"]').each((i, el) => {
+                function tryNext() {
+                    if (tried >= possibleSlugs.length) {
+                        // Fallback: Fetch homepage and search for title
+                        fetch(BASE_URL, { headers: HEADERS })
+                            .then(res => res.text())
+                            .then(html => {
+                                const $ = cheerio.load(html);
+                                let pagePath = $('a:contains("' + title + '")').first().attr('href') ||
+                                               $('a:contains("' + year + '")').closest('a[href*="' + cleanSlug + '"]').attr('href');
+                                if (pagePath) extractFromPage(BASE_URL + pagePath);
+                                else resolve([]);
+                            });
+                        return;
+                    }
+
+                    const pageUrl = BASE_URL + '/' + possibleSlugs[tried++];
+                    fetch(pageUrl, { headers: HEADERS })
+                        .then(res => res.text())
+                        .then(html => {
+                            if (html.length > 1000 && !html.includes('404')) {
+                                extractFromPage(pageUrl, html);
+                            } else {
+                                tryNext();
+                            }
+                        })
+                        .catch(() => tryNext());
+                }
+
+                function extractFromPage(url, html = null) {
+                    if (!html) {
+                        fetch(url, { headers: HEADERS })
+                            .then(res => res.text())
+                            .then(pageHtml => processPage(pageHtml));
+                    } else {
+                        processPage(html);
+                    }
+
+                    function processPage(pageHtml) {
+                        const $ = cheerio.load(pageHtml);
+                        $('a[href*="download"], a.btn-success, a[href*="gdrive"], a[href*="clicknupload"], a[href*="indishare"], a[href*="mega"]').each((i, el) => {
                             let link = $(el).attr('href');
                             if (link && link.includes('http')) {
+                                let quality = $(el).text().match(/(480p|720p|1080p|4K)/i) || ['HD'];
                                 streams.push({
-                                    name: `HDHub4u Server ${i + 1}`,
-                                    title: `${title} \( {year ? `( \){year})` : ''} \( {seasonNum ? `S \){String(seasonNum).padStart(2,'0')}E${String(episodeNum).padStart(2,'0')}` : ''}`,
+                                    name: `HDHub4u ${quality[0] || 'Server ' + (i+1)}`,
                                     url: link,
-                                    quality: 'HD/1080p',
+                                    quality: quality[0] || 'HD',
                                     headers: HEADERS,
                                     provider: 'hdhub4u'
                                 });
                             }
                         });
-
                         resolve(streams.length > 0 ? streams : []);
-                    })
-                    .catch(() => {
-                        // Fallback: Try homepage search if slug fails
-                        fetch(BASE_URL, { headers: HEADERS })
-                            .then(res => res.text())
-                            .then(html => {
-                                const $ = cheerio.load(html);
-                                let pagePath = $('a:contains("' + title + '")').first().attr('href');
-                                if (pagePath) {
-                                    // Recursive fetch page and extract (simplified)
-                                    // Add similar extraction here
-                                }
-                                resolve([]);
-                            });
-                    });
+                    }
+                }
+
+                tryNext();
             })
             .catch(() => resolve([]));
     });
