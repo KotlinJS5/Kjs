@@ -1,79 +1,67 @@
 const cheerio = require('cheerio-without-node-native');
 
-const TMDB_API_KEY = '362a46436db0874d9701e83eaaace8aa';
-const BASE_URL = 'https://vegamovies.surf';
-
+const TMDB_API_KEY = '439c478a771f35c05022f9feabcca01c';
+let MAIN_URL = "https://vegamovies.surf";
 const HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-    'Referer': BASE_URL + '/'
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Referer": `${MAIN_URL}/`,
 };
 
+function loadExtractor(url, referer) {
+    if (!url) return Promise.resolve([]);
+    if (url.includes('hubcloud') || url.includes('hubcloud.php')) {
+        return hubCloudExtractor(url, referer);
+    }
+    return Promise.resolve([]);
+}
+
+function hubCloudExtractor(url, referer) {
+    let currentUrl = url.replace("hubcloud.ink", "hubcloud.dad");
+    return fetch(currentUrl, { headers: { ...HEADERS, Referer: referer } })
+        .then(res => res.text())
+        .then(html => {
+            const $ = cheerio.load(html);
+            const hubPhp = $('a[href*="hubcloud.php"]').attr('href');
+            if (hubPhp) {
+                return fetch(hubPhp, { headers: { ...HEADERS, Referer: currentUrl } })
+                    .then(res2 => res2.text())
+                    .then(html2 => {
+                        const $2 = cheerio.load(html2);
+                        const finalUrl = $2('a.btn-success, a.btn-primary').first().attr('href');
+                        const title = $2('div.card-header').text().trim() || "Vegamovies";
+                        return finalUrl ? [{ name: "Vegamovies", title: title, url: finalUrl, quality: "HD" }] : [];
+                    });
+            }
+            return [];
+        }).catch(() => []);
+}
+
 function getStreams(tmdbId, mediaType, season, episode) {
-    console.log(`[Vegamovies] Fetching ${mediaType} ${tmdbId}`);
-
     const type = mediaType === 'movie' ? 'movie' : 'tv';
-    const apiUrl = `https://api.themoviedb.org/3/${type}/${tmdbId}?api_key=${TMDB_API_KEY}`;
-
-    return fetch(apiUrl)
+    return fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}?api_key=${TMDB_API_KEY}`)
         .then(res => res.json())
         .then(info => {
             const title = info.title || info.name;
-            if (!title) return [];
-            
-            // Search Vegamovies
-            return fetch(`${BASE_URL}/?s=${encodeURIComponent(title)}`, { headers: HEADERS })
+            return fetch(`${MAIN_URL}/?s=${encodeURIComponent(title)}`, { headers: HEADERS })
                 .then(res => res.text())
                 .then(html => {
                     const $ = cheerio.load(html);
-                    const firstPost = $('.post, article').first();
-                    const postUrl = firstPost.find('a').attr('href');
-                    
+                    const postUrl = $('.post-title a, h2.entry-title a').first().attr('href');
                     if (!postUrl) return [];
 
-                    // Get links from the post
                     return fetch(postUrl, { headers: HEADERS })
                         .then(res => res.text())
                         .then(postHtml => {
                             const $post = cheerio.load(postHtml);
-                            const hubLink = $post('a[href*="hubcloud"]').first().attr('href');
-                            
-                            if (!hubLink) return [];
-
-                            // Resolve HubCloud
-                            const targetUrl = hubLink.replace("hubcloud.ink", "hubcloud.dad");
-                            return fetch(targetUrl, { headers: { ...HEADERS, 'Referer': postUrl } })
-                                .then(res => res.text())
-                                .then(hubHtml => {
-                                    const $hub = cheerio.load(hubHtml);
-                                    const hubPhp = $hub('a[href*="hubcloud.php"]').attr('href');
-                                    
-                                    if (!hubPhp) return [];
-
-                                    return fetch(hubPhp, { headers: { ...HEADERS, 'Referer': targetUrl } })
-                                        .then(res => res.text())
-                                        .then(finalHtml => {
-                                            const $final = cheerio.load(finalHtml);
-                                            const streamUrl = $final('a.btn-success, a.btn-primary').first().attr('href');
-                                            const streamName = $final('div.card-header').text().trim() || "Vegamovies";
-
-                                            if (streamUrl && streamUrl.startsWith('http')) {
-                                                return [{
-                                                    name: "Vegamovies",
-                                                    title: streamName.split('|')[0].trim(),
-                                                    url: streamUrl,
-                                                    quality: streamName.includes('1080p') ? '1080p' : '720p'
-                                                }];
-                                            }
-                                            return [];
-                                        });
-                                });
+                            const linkPromises = [];
+                            // Vegamovies uses hubcloud links in specific buttons
+                            $post('a[href*="hubcloud"]').each((i, el) => {
+                                linkPromises.push(loadExtractor($post(el).attr('href'), postUrl));
+                            });
+                            return Promise.all(linkPromises).then(results => results.flat());
                         });
                 });
-        })
-        .catch(err => {
-            console.error('[Vegamovies] Error:', err.message);
-            return [];
-        });
+        }).catch(() => []);
 }
 
 module.exports = { getStreams };
