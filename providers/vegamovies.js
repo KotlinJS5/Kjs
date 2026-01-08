@@ -8,93 +8,72 @@ const HEADERS = {
     'Referer': BASE_URL + '/'
 };
 
-const VegaMoviesScraper = {
-    // 1. Faster Search
-    search: function(query) {
-        return fetch(`${BASE_URL}/?s=${encodeURIComponent(query)}`, { headers: HEADERS })
-            .then(res => res.text())
-            .then(html => {
-                const $ = cheerio.load(html);
-                const results = [];
-                // Only take the very first result to avoid multiple fetches that cause crashes
-                const firstResult = $('.post, article').first();
-                const title = firstResult.find('h2, h3').text().trim();
-                const url = firstResult.find('a').attr('href');
-                
-                if (title && url) {
-                    results.push({ title, url });
-                }
-                return results;
-            })
-            .catch(() => []);
-    },
+function getStreams(tmdbId, mediaType, season, episode) {
+    console.log(`[Vegamovies] Fetching ${mediaType} ${tmdbId}`);
 
-    // 2. Extract with Timeout Protection
-    getLinks: function(url) {
-        return fetch(url, { headers: HEADERS })
-            .then(res => res.text())
-            .then(html => {
-                const $ = cheerio.load(html);
-                const hubLinks = [];
-                // Focus only on HubCloud as it's the most reliable on Vega
-                $('a[href*="hubcloud"]').each((i, el) => {
-                    const link = $(el).attr('href');
-                    if (link) hubLinks.push(link);
+    const type = mediaType === 'movie' ? 'movie' : 'tv';
+    const apiUrl = `https://api.themoviedb.org/3/${type}/${tmdbId}?api_key=${TMDB_API_KEY}`;
+
+    return fetch(apiUrl)
+        .then(res => res.json())
+        .then(info => {
+            const title = info.title || info.name;
+            if (!title) return [];
+            
+            // Search Vegamovies
+            return fetch(`${BASE_URL}/?s=${encodeURIComponent(title)}`, { headers: HEADERS })
+                .then(res => res.text())
+                .then(html => {
+                    const $ = cheerio.load(html);
+                    const firstPost = $('.post, article').first();
+                    const postUrl = firstPost.find('a').attr('href');
+                    
+                    if (!postUrl) return [];
+
+                    // Get links from the post
+                    return fetch(postUrl, { headers: HEADERS })
+                        .then(res => res.text())
+                        .then(postHtml => {
+                            const $post = cheerio.load(postHtml);
+                            const hubLink = $post('a[href*="hubcloud"]').first().attr('href');
+                            
+                            if (!hubLink) return [];
+
+                            // Resolve HubCloud
+                            const targetUrl = hubLink.replace("hubcloud.ink", "hubcloud.dad");
+                            return fetch(targetUrl, { headers: { ...HEADERS, 'Referer': postUrl } })
+                                .then(res => res.text())
+                                .then(hubHtml => {
+                                    const $hub = cheerio.load(hubHtml);
+                                    const hubPhp = $hub('a[href*="hubcloud.php"]').attr('href');
+                                    
+                                    if (!hubPhp) return [];
+
+                                    return fetch(hubPhp, { headers: { ...HEADERS, 'Referer': targetUrl } })
+                                        .then(res => res.text())
+                                        .then(finalHtml => {
+                                            const $final = cheerio.load(finalHtml);
+                                            const streamUrl = $final('a.btn-success, a.btn-primary').first().attr('href');
+                                            const streamName = $final('div.card-header').text().trim() || "Vegamovies";
+
+                                            if (streamUrl && streamUrl.startsWith('http')) {
+                                                return [{
+                                                    name: "Vegamovies",
+                                                    title: streamName.split('|')[0].trim(),
+                                                    url: streamUrl,
+                                                    quality: streamName.includes('1080p') ? '1080p' : '720p'
+                                                }];
+                                            }
+                                            return [];
+                                        });
+                                });
+                        });
                 });
+        })
+        .catch(err => {
+            console.error('[Vegamovies] Error:', err.message);
+            return [];
+        });
+}
 
-                if (hubLinks.length === 0) return [];
-
-                // Only try the first link found to prevent "Multiple Fetch" errors in Nuvio
-                return this.extractHubCloud(hubLinks[0], url);
-            })
-            .catch(() => []);
-    },
-
-    // 3. Simple Resolver
-    extractHubCloud: function(url, referer) {
-        const targetUrl = url.replace("hubcloud.ink", "hubcloud.dad");
-        return fetch(targetUrl, { headers: { ...HEADERS, 'Referer': referer } })
-            .then(res => res.text())
-            .then(html => {
-                const $ = cheerio.load(html);
-                const hubPhp = $('a[href*="hubcloud.php"]').attr('href');
-                if (!hubPhp) return [];
-
-                return fetch(hubPhp, { headers: { ...HEADERS, 'Referer': targetUrl } })
-                    .then(res2 => res2.text())
-                    .then(html2 => {
-                        const $2 = cheerio.load(html2);
-                        const finalUrl = $2('a.btn-success, a.btn-primary').first().attr('href');
-                        const name = $2('div.card-header').text().trim() || "Vegamovies Stream";
-                        
-                        if (finalUrl && finalUrl.includes('http')) {
-                            return [{
-                                name: `Vega: ${name.split('|')[0].trim()}`,
-                                url: finalUrl,
-                                quality: name.includes('1080p') ? '1080p' : '720p'
-                            }];
-                        }
-                        return [];
-                    });
-            })
-            .catch(() => []);
-    },
-
-    getStreams: function(tmdbId, mediaType) {
-        return fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${TMDB_API_KEY}`)
-            .then(res => res.json())
-            .then(info => {
-                const title = info.title || info.name;
-                if (!title) return [];
-                return this.search(title).then(results => {
-                    if (results.length > 0) {
-                        return this.getLinks(results[0].url);
-                    }
-                    return [];
-                });
-            })
-            .catch(() => []);
-    }
-};
-
-module.exports = VegaMoviesScraper;
+module.exports = { getStreams };
