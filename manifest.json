@@ -3,25 +3,25 @@
   "version": "1.0.0",
   "providers": [
     {
-      "id": "MoviesDrive",
+      "id": "moviesdrive",
       "name": "MoviesDrive",
       "filename": "providers/moviesdrive.js",
-      "enabled": true,
-      "supportedTypes": ["movie", "tv"]
+      "supportedTypes": ["movie", "tv"],
+      "enabled": true
     },
     {
       "id": "hdhub4u",
       "name": "HDHub4u",
       "filename": "providers/hdhub4u.js",
-      "enabled": true,
-      "supportedTypes": ["movie", "tv"]
+      "supportedTypes": ["movie", "tv"],
+      "enabled": true
     },
     {
       "id": "vegamovies",
       "name": "Vegamovies",
       "filename": "providers/vegamovies.js",
-      "enabled": true,
-      "supportedTypes": ["movie", "tv"]
+      "supportedTypes": ["movie", "tv"],
+      "enabled": true
     }
   ]
 }
