@@ -1,1 +1,41 @@
-{ "name": "Kjs Repo", "version": "1.0.0", "manifest_version": 1, "providers": [ { "id": "moviesdrive", "name": "MoviesDrive", "description": "Direct HD downloads from MoviesDrive with HubCloud support", "version": "1.0.0", "author": "Kjs", "supportedTypes": ["movie", "tv"], "filename": "providers/moviesdrive.js", "enabled": true, "formats": ["mp4", "mkv"], "logo": "https://i.imgur.com/9bGkGMi.png", "contentLanguage": ["en", "hi"] }, { "id": "hdhub4u", "name": "HDHub4u", "description": "High-quality streams from HDHub4u via Instant Download", "version": "1.0.0", "author": "Kjs", "supportedTypes": ["movie", "tv"], "filename": "providers/hdhub4u.js", "enabled": true, "formats": ["mp4", "mkv"], "logo": "https://new1.hdhub4u.fo/favicon.ico", "contentLanguage": ["en", "hi"] }, { "id": "vegamovies", "name": "Vegamovies", "description": "Vegamovies scraper for Bollywood, Hollywood, and Dual Audio", "version": "1.0.0", "author": "Kjs", "supportedTypes": ["movie", "tv"], "filename": "providers/vegamovies.js", "enabled": true, "formats": ["mp4", "mkv"], "logo": "https://vegamovies.surf/favicon.ico", "contentLanguage": ["en", "hi", "ta", "te"] } ] }
+[
+  {
+    "id": "hdhub4u",
+    "name": "HDHub4u",
+    "description": "High-quality streams from HDHub4u via Instant Download",
+    "version": "1.0.0",
+    "author": "Kjs",
+    "supportedTypes": ["movie", "tv"],
+    "filename": "providers/hdhub4u.js",
+    "enabled": true,
+    "formats": ["mp4", "mkv"],
+    "logo": "https://new1.hdhub4u.fo/favicon.ico",
+    "contentLanguage": ["en", "hi"]
+  },
+  {
+    "id": "moviesdrive",
+    "name": "MoviesDrive",
+    "description": "Direct HD downloads from MoviesDrive with HubCloud support",
+    "version": "1.0.0",
+    "author": "Kjs",
+    "supportedTypes": ["movie", "tv"],
+    "filename": "providers/moviesdrive.js",
+    "enabled": true,
+    "formats": ["mp4", "mkv"],
+    "logo": "https://i.imgur.com/9bGkGMi.png",
+    "contentLanguage": ["en", "hi"]
+  },
+  {
+    "id": "vegamovies",
+    "name": "Vegamovies",
+    "description": "Vegamovies scraper for Bollywood, Hollywood, and Dual Audio",
+    "version": "1.0.0",
+    "author": "Kjs",
+    "supportedTypes": ["movie", "tv"],
+    "filename": "providers/vegamovies.js",
+    "enabled": true,
+    "formats": ["mp4", "mkv"],
+    "logo": "https://vegamovies.surf/favicon.ico",
+    "contentLanguage": ["en", "hi", "ta", "te"]
+  }
+]
