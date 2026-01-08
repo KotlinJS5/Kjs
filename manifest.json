@@ -5,7 +5,7 @@
     {
       "id": "moviesdrive",
       "name": "MoviesDrive",
-      "description": "Direct HD downloads with multiple quality options and servers",
+      "description": "Direct HD downloads from MoviesDrive with HubCloud support",
       "version": "1.0.0",
       "author": "Kjs",
       "supportedTypes": ["movie", "tv"],
@@ -18,7 +18,7 @@
     {
       "id": "hdhub4u",
       "name": "HDHub4u",
-      "description": "Direct HD downloads (480p/720p/1080p/4K, multi servers)",
+      "description": "High-quality streams from HDHub4u via Instant Download",
       "version": "1.0.0",
       "author": "Kjs",
       "supportedTypes": ["movie", "tv"],
@@ -31,7 +31,7 @@
     {
       "id": "vegamovies",
       "name": "Vegamovies",
-      "description": "Direct HD downloads (Bollywood, Hollywood Dual Audio, multi servers)",
+      "description": "Vegamovies scraper for Bollywood, Hollywood, and Dual Audio",
       "version": "1.0.0",
       "author": "Kjs",
       "supportedTypes": ["movie", "tv"],
@@ -39,7 +39,7 @@
       "enabled": true,
       "formats": ["mp4", "mkv"],
       "logo": "https://vegamovies.surf/favicon.ico",
-      "contentLanguage": ["en", "hi"]
+      "contentLanguage": ["en", "hi", "ta", "te"]
     }
   ]
 }
