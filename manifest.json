@@ -1,45 +1,27 @@
 {
   "name": "Kjs Repo",
   "version": "1.0.0",
-  "scrapers": [
+  "providers": [
     {
       "id": "MoviesDrive",
       "name": "MoviesDrive",
-      "description": "Direct HD downloads with multiple quality options and servers",
-      "version": "1.0.0",
-      "author": "Nuvio Team",
-      "supportedTypes": ["movie", "tv"],
       "filename": "providers/moviesdrive.js",
       "enabled": true,
-      "formats": ["mp4", "mkv"],
-      "logo": "https://i.imgur.com/9bGkGMi.png",
-      "contentLanguage": ["en", "hi", "ta", "te"]
+      "supportedTypes": ["movie", "tv"]
     },
     {
       "id": "hdhub4u",
       "name": "HDHub4u",
-      "description": "Direct HD downloads (480p/720p/1080p/4K, multi servers like GDrive)",
-      "version": "1.0.0",
-      "author": "KotlinJS5",
-      "supportedTypes": ["movie", "tv"],
       "filename": "providers/hdhub4u.js",
       "enabled": true,
-      "formats": ["mp4", "mkv"],
-      "logo": "https://new1.hdhub4u.fo/favicon.ico",
-      "contentLanguage": ["en", "hi", "ta", "te"]
+      "supportedTypes": ["movie", "tv"]
     },
     {
       "id": "vegamovies",
       "name": "Vegamovies",
-      "description": "Direct HD downloads (480p/720p/1080p/4K, Bollywood, Hollywood Dual Audio, South Hindi Dubbed, multi servers)",
-      "version": "1.0.0",
-      "author": "Kjs Repo",
-      "supportedTypes": ["movie", "tv"],
       "filename": "providers/vegamovies.js",
       "enabled": true,
-      "formats": ["mp4", "mkv"],
-      "logo": "https://vegamovies.surf/favicon.ico",
-      "contentLanguage": ["en", "hi", "ta", "te", "ml", "kn"]
+      "supportedTypes": ["movie", "tv"]
     }
   ]
 }
