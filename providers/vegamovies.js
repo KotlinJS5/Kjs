@@ -9,80 +9,67 @@ const HEADERS = {
 };
 
 const VegaMoviesScraper = {
-    // 1. Search Logic: We use only the title to increase match chances
+    // 1. Faster Search
     search: function(query) {
-        const searchUrl = `${BASE_URL}/?s=${encodeURIComponent(query)}`;
-        return fetch(searchUrl, { headers: HEADERS })
+        return fetch(`${BASE_URL}/?s=${encodeURIComponent(query)}`, { headers: HEADERS })
             .then(res => res.text())
             .then(html => {
                 const $ = cheerio.load(html);
                 const results = [];
-                // Vegamovies posts are usually inside article or div.post
-                $('article, .post').each((i, el) => {
-                    const title = $(el).find('h2, h3').text().trim();
-                    const url = $(el).find('a').attr('href');
-                    if (title && url && url.includes(BASE_URL)) {
-                        results.push({ title, url });
-                    }
-                });
+                // Only take the very first result to avoid multiple fetches that cause crashes
+                const firstResult = $('.post, article').first();
+                const title = firstResult.find('h2, h3').text().trim();
+                const url = firstResult.find('a').attr('href');
+                
+                if (title && url) {
+                    results.push({ title, url });
+                }
                 return results;
             })
             .catch(() => []);
     },
 
-    // 2. Extraction: Finding the HubCloud buttons
+    // 2. Extract with Timeout Protection
     getLinks: function(url) {
         return fetch(url, { headers: HEADERS })
             .then(res => res.text())
             .then(html => {
                 const $ = cheerio.load(html);
                 const hubLinks = [];
-                // Look for common download button patterns on Vegamovies
-                $('a[href*="hubcloud"], a[href*="v-cloud"], a[href*="vcloud"]').each((i, el) => {
+                // Focus only on HubCloud as it's the most reliable on Vega
+                $('a[href*="hubcloud"]').each((i, el) => {
                     const link = $(el).attr('href');
                     if (link) hubLinks.push(link);
                 });
 
                 if (hubLinks.length === 0) return [];
 
-                // Resolve the first 3 links found to save time/memory
-                const promises = hubLinks.slice(0, 3).map(link => this.extractHubCloud(link, url));
-                return Promise.all(promises).then(results => results.flat());
+                // Only try the first link found to prevent "Multiple Fetch" errors in Nuvio
+                return this.extractHubCloud(hubLinks[0], url);
             })
             .catch(() => []);
     },
 
-    // 3. Resolver: Bypassing the intermediate landing page
+    // 3. Simple Resolver
     extractHubCloud: function(url, referer) {
-        // Handle common domain changes
-        const targetUrl = url.replace("hubcloud.ink", "hubcloud.dad").replace("v-cloud.link", "v-cloud.biz");
-        
+        const targetUrl = url.replace("hubcloud.ink", "hubcloud.dad");
         return fetch(targetUrl, { headers: { ...HEADERS, 'Referer': referer } })
             .then(res => res.text())
             .then(html => {
                 const $ = cheerio.load(html);
-                // The actual video link is often behind a "hubcloud.php" redirect
                 const hubPhp = $('a[href*="hubcloud.php"]').attr('href');
-                
-                if (!hubPhp) {
-                    // Sometimes the direct download link is already on this page
-                    const direct = $('a.btn-success, a.btn-primary').first().attr('href');
-                    if (direct && direct.includes('http')) {
-                        return [{ name: "Vega HD Stream", url: direct, quality: "HD" }];
-                    }
-                    return [];
-                }
+                if (!hubPhp) return [];
 
                 return fetch(hubPhp, { headers: { ...HEADERS, 'Referer': targetUrl } })
                     .then(res2 => res2.text())
                     .then(html2 => {
                         const $2 = cheerio.load(html2);
                         const finalUrl = $2('a.btn-success, a.btn-primary').first().attr('href');
-                        const name = $2('div.card-header').text().trim() || "Vegamovies";
+                        const name = $2('div.card-header').text().trim() || "Vegamovies Stream";
                         
                         if (finalUrl && finalUrl.includes('http')) {
                             return [{
-                                name: `Vega: ${name.substring(0, 20)}...`,
+                                name: `Vega: ${name.split('|')[0].trim()}`,
                                 url: finalUrl,
                                 quality: name.includes('1080p') ? '1080p' : '720p'
                             }];
@@ -93,14 +80,12 @@ const VegaMoviesScraper = {
             .catch(() => []);
     },
 
-    // 4. Main Entry point for Nuvio
     getStreams: function(tmdbId, mediaType) {
         return fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${TMDB_API_KEY}`)
             .then(res => res.json())
             .then(info => {
                 const title = info.title || info.name;
                 if (!title) return [];
-                // Search only for the title to be safe
                 return this.search(title).then(results => {
                     if (results.length > 0) {
                         return this.getLinks(results[0].url);
