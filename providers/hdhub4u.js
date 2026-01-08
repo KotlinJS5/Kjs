@@ -1,130 +1,101 @@
+const cheerio = require('cheerio-without-node-native');
 
-// providers/hdhub4u.js
-const cheerio = require('cheerio');
+// Configuration
+const TMDB_API_KEY = '439c478a771f35c05022f9feabcca01c';
+let MAIN_URL = "https://moviesdrive.forum";
+const HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Referer": `${MAIN_URL}/`,
+};
 
-class HDHub4uScraper {
-    constructor() {
-        this.name = "HDHub4u";
-        this.version = "1.0.0";
-        this.baseUrl = 'https://new1.hdhub4u.fo';
-        this.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-            'Referer': 'https://new1.hdhub4u.fo/'
-        };
-        this.TMDB_API_KEY = '362a46436db0874d9701e83eaaace8aa';
+// --- Helper: The Link Router (Load Extractor) ---
+// This identifies which server the link belongs to and sends it to the right function
+function loadExtractor(url, referer) {
+    if (!url) return Promise.resolve([]);
+    
+    if (url.includes('hubcloud') || url.includes('hubcloud.php')) {
+        return hubCloudExtractor(url, referer);
+    } else if (url.includes('pixeldrain')) {
+        return pixelDrainExtractor(url);
+    } else if (url.includes('streamtape')) {
+        return streamTapeExtractor(url);
+    } else if (url.includes('hubcdn')) {
+        return hubCdnExtractor(url, referer);
     }
-
-    // REQUIRED: Search function
-    async search(query, type = "movie") {
-        try {
-            const response = await fetch(`${this.baseUrl}/?s=${encodeURIComponent(query)}`, {
-                headers: this.headers
-            });
-            const html = await response.text();
-            const $ = cheerio.load(html);
-            
-            const results = [];
-            $('.post, article, .movie-item').each((i, element) => {
-                const title = $(element).find('h2 a, h3 a, .title a').text();
-                const url = $(element).find('a').attr('href');
-                const poster = $(element).find('img').attr('src');
-                
-                if (title && url) {
-                    results.push({
-                        title: title,
-                        url: url.startsWith('http') ? url : this.baseUrl + url,
-                        poster: poster || '',
-                        type: title.toLowerCase().includes('season') ? 'tv' : 'movie'
-                    });
-                }
-            });
-            
-            return results.slice(0, 10);
-        } catch (error) {
-            console.error('Search error:', error);
-            return [];
-        }
-    }
-
-    // REQUIRED: Get metadata
-    async getMeta(url) {
-        try {
-            const response = await fetch(url, { headers: this.headers });
-            const html = await response.text();
-            const $ = cheerio.load(html);
-            
-            return {
-                title: $('h1.entry-title, h1.title').text() || 'Unknown Title',
-                year: $('.year, .date').text() || '',
-                plot: $('.entry-content p, .plot').first().text() || '',
-                poster: $('.poster img, .thumbnail img').attr('src') || ''
-            };
-        } catch (error) {
-            console.error('Meta error:', error);
-            return { title: 'Error loading metadata' };
-        }
-    }
-
-    // REQUIRED: Get download links
-    async getLinks(url) {
-        try {
-            const response = await fetch(url, { headers: this.headers });
-            const html = await response.text();
-            const $ = cheerio.load(html);
-            
-            const streams = [];
-            const selectors = 'a[href*="download"], a.btn, a[href*="gdrive"], a[href*="clicknupload"], a[href*="indishare"], a[href*="mega"], a[href*="drive.google"]';
-            
-            $(selectors).each((i, element) => {
-                const link = $(element).attr('href');
-                if (!link || !link.includes('http')) return;
-                
-                const text = $(element).text();
-                const qualityMatch = text.match(/(480p|720p|1080p|4K)/i);
-                const quality = qualityMatch ? qualityMatch[0] : 'HD';
-                
-                streams.push({
-                    name: `HDHub4u ${quality}`,
-                    url: link,
-                    quality: quality,
-                    headers: this.headers,
-                    provider: 'hdhub4u'
-                });
-            });
-            
-            return streams;
-        } catch (error) {
-            console.error('Links error:', error);
-            return [];
-        }
-    }
-
-    // Optional: Get streams by TMDB ID
-    async getStreams(tmdbId, mediaType = "movie", seasonNum = null, episodeNum = null) {
-        try {
-            const titleFetchUrl = mediaType === 'movie'
-                ? `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${this.TMDB_API_KEY}`
-                : `https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${this.TMDB_API_KEY}`;
-            
-            const infoRes = await fetch(titleFetchUrl);
-            const info = await infoRes.json();
-            
-            if (!info || info.success === false) return [];
-            
-            const title = mediaType === 'movie' ? info.title : info.name;
-            const year = (mediaType === 'movie' ? info.release_date : info.first_air_date || '').split('-')[0] || '';
-            
-            const searchResults = await this.search(`${title} ${year}`);
-            if (searchResults.length === 0) return [];
-            
-            const firstResult = searchResults[0];
-            return await this.getLinks(firstResult.url);
-        } catch (error) {
-            console.error('GetStreams error:', error);
-            return [];
-        }
-    }
+    
+    // Default fallback
+    return Promise.resolve([{ name: "Moviesdrive", title: "Direct Link", url: url, quality: "HD" }]);
 }
 
-// EXPORT THE CLASS INSTANCE
-module.exports = new HDHub4uScraper();
+// --- Specific Extractors (Simplified versions of your working code) ---
+
+function hubCloudExtractor(url, referer) {
+    let currentUrl = url.replace("hubcloud.ink", "hubcloud.dad");
+    return fetch(currentUrl, { headers: { ...HEADERS, Referer: referer } })
+        .then(res => res.text())
+        .then(html => {
+            const $ = cheerio.load(html);
+            const hubPhp = $('a[href*="hubcloud.php"]').attr('href');
+            if (hubPhp) {
+                return fetch(hubPhp, { headers: { ...HEADERS, Referer: currentUrl } })
+                    .then(res2 => res2.text())
+                    .then(html2 => {
+                        const $2 = cheerio.load(html2);
+                        const finalUrl = $2('a.btn-success, a.btn-primary').first().attr('href');
+                        const title = $2('div.card-header').text().trim() || "HubCloud";
+                        return finalUrl ? [{ name: "Moviesdrive", title: title, url: finalUrl, quality: "HD" }] : [];
+                    });
+            }
+            return [];
+        }).catch(() => []);
+}
+
+function pixelDrainExtractor(url) {
+    const fileId = url.split('/').pop();
+    const directUrl = `https://pixeldrain.com/api/file/${fileId}?download`;
+    return Promise.resolve([{ name: "Moviesdrive", title: "Pixeldrain Fast", url: directUrl, quality: "HD" }]);
+}
+
+function streamTapeExtractor(url) {
+    return Promise.resolve([{ name: "Moviesdrive", title: "StreamTape", url: url, quality: "SD" }]);
+}
+
+function hubCdnExtractor(url, referer) {
+    return Promise.resolve([{ name: "Moviesdrive", title: "HubCDN M3U8", url: url, quality: "HD" }]);
+}
+
+// --- Main Nuvio Entry Point ---
+function getStreams(tmdbId, mediaType, season, episode) {
+    const type = mediaType === 'movie' ? 'movie' : 'tv';
+    return fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}?api_key=${TMDB_API_KEY}`)
+        .then(res => res.json())
+        .then(info => {
+            const title = info.title || info.name;
+            if (!title) return [];
+
+            return fetch(`${MAIN_URL}/?s=${encodeURIComponent(title)}`, { headers: HEADERS })
+                .then(res => res.text())
+                .then(html => {
+                    const $ = cheerio.load(html);
+                    const postUrl = $('article a, .post a').first().attr('href');
+                    if (!postUrl) return [];
+
+                    return fetch(postUrl, { headers: HEADERS })
+                        .then(res => res.text())
+                        .then(postHtml => {
+                            const $post = cheerio.load(postHtml);
+                            const linkPromises = [];
+
+                            $post('a[href*="hubcloud"], a[href*="pixeldrain"], a[href*="streamtape"]').each((i, el) => {
+                                const href = $post(el).attr('href');
+                                linkPromises.push(loadExtractor(href, postUrl));
+                            });
+
+                            return Promise.all(linkPromises).then(results => results.flat());
+                        });
+                });
+        })
+        .catch(() => []);
+}
+
+module.exports = { getStreams };
