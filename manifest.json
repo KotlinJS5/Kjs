@@ -1,12 +1,12 @@
 {
   "name": "Kjs-Nuvio",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "scrapers": [
     {
       "id": "4khubdad",
       "name": "4kHubDad",
-      "description": "4kHubDad provider for Nuvio. Extracts HLS/MP4 streams from 4khdhub-style mirrors. WORKING & TESTED.",
-      "version": "1.0.2",
+      "description": "4kHubDad - Reliable streaming provider with 4K content support",
+      "version": "1.0.3",
       "author": "kotlin",
       "supportedTypes": [
         "movie",
@@ -19,13 +19,13 @@
         "hi"
       ],
       "supportsExternalPlayer": true,
-      "timeout": 30000
+      "timeout": 25000
     },
     {
       "id": "moviesdrive",
       "name": "MoviesDrive",
-      "description": "MoviesDrive provider - Currently disabled (uses JavaScript rendering). Check TROUBLESHOOTING.md for details.",
-      "version": "1.0.2",
+      "description": "MoviesDrive - Currently unavailable (technical limitations)",
+      "version": "1.0.3",
       "author": "kotlin",
       "supportedTypes": [
         "movie",
@@ -38,13 +38,13 @@
         "hi"
       ],
       "supportsExternalPlayer": true,
-      "timeout": 30000
+      "timeout": 25000
     },
     {
       "id": "vegamovies",
       "name": "Vegamovies",
-      "description": "Vegamovies provider - Currently disabled (uses JavaScript rendering). Check TROUBLESHOOTING.md for details.",
-      "version": "1.0.2",
+      "description": "Vegamovies - Currently unavailable (technical limitations)",
+      "version": "1.0.3",
       "author": "kotlin",
       "supportedTypes": [
         "movie",
@@ -57,7 +57,7 @@
         "hi"
       ],
       "supportsExternalPlayer": true,
-      "timeout": 30000
+      "timeout": 25000
     }
   ]
 }
