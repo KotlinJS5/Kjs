@@ -1,84 +1,155 @@
 # Kjs-Nuvio Plugin Troubleshooting Guide
 
+## Current Status
+
+### ✅ Working Providers
+- **4KHDHub.DAD** - Fully functional and tested. Returns streams for movies and TV shows.
+
+### ⚠️ Disabled Providers
+- **MoviesDrive** - Uses JavaScript rendering, not compatible with server-side scraping
+- **Vegamovies** - Uses JavaScript rendering, not compatible with server-side scraping
+
+## Why Some Providers Don't Work
+
+The Nuvio plugin uses **server-side scraping** with `fetch()` and `cheerio`. However, some streaming sites use **client-side rendering** with JavaScript to load content dynamically. This means:
+
+1. The HTML returned by the server doesn't contain search results
+2. Results are loaded by JavaScript in the browser
+3. Server-side scrapers cannot access dynamically loaded content
+
+### Affected Providers
+- **MoviesDrive.forum** - Uses JavaScript to load search results
+- **Vegamovies.surf** - Uses JavaScript to load search results
+
+### Working Provider
+- **4khdhub.dad** - Returns full HTML with search results server-side ✓
+
+## Solutions
+
+### For Users
+
+1. **Use 4KHDHub.DAD** - It's the only fully functional provider currently
+   - Search for movies and TV shows
+   - Returns high-quality streams
+   - Supports external players
+
+2. **Clear Nuvio Cache**
+   - Close the app completely
+   - Clear app cache (Settings → Storage → Clear Cache)
+   - Restart and test
+
+3. **Reinstall the Plugin**
+   - Remove: Settings → Local Scrapers → Remove Kjs
+   - Add: `https://raw.githubusercontent.com/KotlinJS5/Kjs/main/`
+
+### For Developers
+
+To fix MoviesDrive and Vegamovies, you would need to:
+
+1. **Use a Headless Browser** (Puppeteer, Playwright)
+   - Can execute JavaScript
+   - Can wait for dynamic content
+   - More resource-intensive
+
+2. **Find API Endpoints**
+   - Some sites have hidden API endpoints
+   - Analyze network requests in browser DevTools
+   - Use the API directly instead of scraping
+
+3. **Use Alternative Sources**
+   - Find other streaming sites with server-side rendering
+   - Implement new providers
+
+## Testing Results
+
+```
+4KHDHub.DAD:  ✓ 16 streams found for "The Matrix"
+MoviesDrive:  ✗ 0 streams (JavaScript rendering)
+Vegamovies:   ✗ 0 streams (JavaScript rendering)
+```
+
 ## Common Issues and Solutions
 
-### Issue 1: Plugin Installed but Not Loading Content
+### Issue 1: No Streams Appearing
 
-**Symptoms:**
-- Plugin appears in Nuvio settings
-- No streams are returned when searching for content
-- No error messages visible
+**Solution:**
+- Ensure 4KHDHub.DAD is enabled in the plugin settings
+- Try searching for popular movies: "The Matrix", "Inception", "Avatar"
+- Check internet connection
 
-**Solutions:**
+### Issue 2: Slow Loading
 
-1. **Clear Nuvio Cache**
-   - Close the Nuvio app completely
-   - Clear the app cache (Settings → Storage → Clear Cache)
-   - Restart the app
+**Solution:**
+- 4KHDHub takes 5-15 seconds to search and extract streams
+- This is normal due to multiple HTTP requests
+- Patient waiting is required
 
-2. **Verify Plugin URL**
+### Issue 3: Streams Not Playing
+
+**Solution:**
+- Try opening in an external player
+- Check if the stream URL is accessible from your region
+- Some streams may be region-restricted
+
+## Version History
+
+### v1.0.2
+- Disabled MoviesDrive and Vegamovies (JavaScript rendering incompatibility)
+- Focused on 4KHDHub.DAD as the primary working provider
+- Updated documentation
+
+### v1.0.1
+- Added proper error handling and logging
+- Fixed stream object format for Nuvio compatibility
+- Added headers to all stream objects
+
+### v1.0.0
+- Initial release with three providers
+
+## Future Improvements
+
+To make this plugin more robust, consider:
+
+1. **Add More Server-Side Rendering Sites**
+   - Find other streaming sites that return HTML with content
+   - Implement scrapers for those sites
+
+2. **Implement Headless Browser Support**
+   - Use Puppeteer or Playwright for JavaScript rendering
+   - May require Nuvio framework updates
+
+3. **Add API-Based Providers**
+   - Some sites have public or hidden APIs
+   - More reliable than scraping
+
+4. **Implement Caching**
+   - Cache search results to reduce API calls
+   - Improve performance
+
+## Getting Help
+
+If you continue to experience issues:
+
+1. **Verify 4KHDHub is Enabled**
    - Go to Settings → Local Scrapers
-   - Ensure the URL is: `https://raw.githubusercontent.com/KotlinJS5/Kjs/main/`
-   - Remove and re-add the plugin if needed
+   - Check that 4KHDHub.DAD has a checkmark
 
-3. **Check Internet Connection**
-   - Ensure you have a stable internet connection
-   - The plugin requires access to external APIs (TMDB, 4khdhub.dad, moviesdrive.forum, vegamovies.surf)
+2. **Test with Known Content**
+   - Search for "The Matrix" (1999)
+   - Search for "Breaking Bad" (TV show)
 
-4. **Verify Source Websites**
-   - The plugin relies on external streaming sites that may be down or blocked in your region
-   - Try searching for popular movies like "The Matrix" or "Inception"
+3. **Check Your Region**
+   - Some sites may be blocked in certain countries
+   - Consider using a VPN (at your own risk)
 
-### Issue 2: Specific Provider Not Working
-
-**For 4KHDHub.DAD:**
-- The site may require JavaScript rendering or have changed its structure
-- Try searching for popular movies from 1999-2024
-- Check if the domain is accessible in your region
-
-**For MoviesDrive:**
-- The site uses HubCloud for hosting
-- Ensure HubCloud domains (hubcloud.dad, hubcloud.ink) are accessible
-- Some regions may have restrictions
-
-**For Vegamovies:**
-- Similar to MoviesDrive, relies on HubCloud hosting
-- Check regional access restrictions
-
-### Issue 3: Slow or Timeout Errors
-
-**Solutions:**
-1. **Increase Timeout Setting**
-   - The default timeout is 30 seconds
-   - If you're on a slow connection, this may not be enough
-
-2. **Check Network Speed**
-   - Run a speed test to ensure adequate bandwidth
-   - Minimum recommended: 5 Mbps download
-
-3. **Try Different Providers**
-   - If one provider is slow, try another
-   - Different providers may have different response times
-
-### Issue 4: Stream URLs Not Playing
-
-**Solutions:**
-1. **Check External Player Support**
-   - All providers support external players
-   - Try opening the stream in an external video player
-
-2. **Verify Headers**
-   - Some streams require specific headers for playback
-   - The plugin includes necessary headers automatically
-
-3. **Check Stream URL Format**
-   - Ensure the URL is accessible from your device
-   - Some streams may be region-restricted
+4. **Report Issues**
+   - Include error messages from Nuvio logs
+   - Specify what content you searched for
+   - Mention your region/country
 
 ## Technical Details
 
 ### Stream Object Format
-Each provider returns streams in this format:
 ```javascript
 {
     name: "Provider Name - Quality",
@@ -95,62 +166,26 @@ Each provider returns streams in this format:
 ```
 
 ### Supported Media Types
-- **Movies**: All providers support movies
-- **TV Shows**: All providers support TV shows (season and episode parameters required)
+- **Movies**: All enabled providers support movies
+- **TV Shows**: All enabled providers support TV shows (season and episode parameters required)
 
 ### Timeout Configuration
 - Default: 30 seconds per provider
-- Maximum: 60 seconds (configurable in manifest)
-- Minimum: 10 seconds
+- 4KHDHub typically responds in 5-15 seconds
 
-## Debugging
+## Why This Matters
 
-### Enable Logging
-To see detailed logs from the plugin:
-1. Open Nuvio developer console (if available)
-2. Search for content
-3. Check console for error messages starting with `[4KHDHub.DAD]`, `[MoviesDrive]`, or `[Vegamovies]`
+Scraping streaming sites is challenging because:
 
-### Common Error Messages
+1. **Sites Protect Their Content** - They use JavaScript rendering and anti-scraping measures
+2. **Sites Change Structure** - HTML structure changes frequently
+3. **Regional Restrictions** - Content may be blocked by region
+4. **Rate Limiting** - Too many requests may get you blocked
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `TMDB API error: 401` | Invalid API key | Contact developer |
-| `TMDB API error: 404` | Content not found in TMDB | Try different search terms |
-| `Search error: 403` | Access denied to source site | Check regional restrictions |
-| `No matching content found` | Content not available on source | Try different provider |
-| `Empty search results` | Network issue or site blocked | Check internet connection |
+The 4KHDHub provider works because it returns full HTML server-side, making it compatible with our scraping approach.
 
-## Regional Restrictions
+---
 
-Some streaming sites may be blocked in certain regions:
-- **Europe**: GDPR restrictions may apply
-- **Asia**: Regional blocking may be in place
-- **North America**: Generally accessible
-
-If you encounter access issues, consider using a VPN (at your own risk and responsibility).
-
-## Getting Help
-
-If you continue to experience issues:
-1. Check this troubleshooting guide
-2. Review the plugin logs in Nuvio
-3. Verify all source websites are accessible
-4. Try with different content (popular vs. obscure)
-5. Report issues on GitHub with:
-   - Error message
-   - Content you were searching for
-   - Your region/country
-   - Device type and OS
-
-## Version History
-
-### v1.0.1
-- Added proper error handling and logging
-- Fixed stream object format for Nuvio compatibility
-- Added headers to all stream objects
-- Improved timeout handling
-
-### v1.0.0
-- Initial release
-- Three providers: 4KHDHub.DAD, MoviesDrive, Vegamovies
+**Last Updated:** February 2026  
+**Plugin Version:** 1.0.2  
+**Status:** 4KHDHub working, MoviesDrive/Vegamovies disabled

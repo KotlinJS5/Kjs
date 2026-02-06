@@ -1,12 +1,12 @@
 {
   "name": "Kjs-Nuvio",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "scrapers": [
     {
       "id": "4khubdad",
       "name": "4kHubDad",
-      "description": "4kHubDad provider for Nuvio. Extracts HLS/MP4 streams from 4khdhub-style mirrors.",
-      "version": "1.0.1",
+      "description": "4kHubDad provider for Nuvio. Extracts HLS/MP4 streams from 4khdhub-style mirrors. WORKING & TESTED.",
+      "version": "1.0.2",
       "author": "kotlin",
       "supportedTypes": [
         "movie",
@@ -24,15 +24,15 @@
     {
       "id": "moviesdrive",
       "name": "MoviesDrive",
-      "description": "MoviesDrive provider for Nuvio. Uses multi-step extraction for direct and embed-based streams.",
-      "version": "1.0.1",
+      "description": "MoviesDrive provider - Currently disabled (uses JavaScript rendering). Check TROUBLESHOOTING.md for details.",
+      "version": "1.0.2",
       "author": "kotlin",
       "supportedTypes": [
         "movie",
         "tv"
       ],
       "filename": "providers/moviesdrive.js",
-      "enabled": true,
+      "enabled": false,
       "contentLanguage": [
         "en",
         "hi"
@@ -43,15 +43,15 @@
     {
       "id": "vegamovies",
       "name": "Vegamovies",
-      "description": "Vegamovies provider for Nuvio. Supports multiple mirrors and dynamic iframe extraction.",
-      "version": "1.0.1",
+      "description": "Vegamovies provider - Currently disabled (uses JavaScript rendering). Check TROUBLESHOOTING.md for details.",
+      "version": "1.0.2",
       "author": "kotlin",
       "supportedTypes": [
         "movie",
         "tv"
       ],
       "filename": "providers/vegamovies.js",
-      "enabled": true,
+      "enabled": false,
       "contentLanguage": [
         "en",
         "hi"
