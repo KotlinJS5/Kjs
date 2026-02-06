@@ -12,7 +12,7 @@
         "movie",
         "tv"
       ],
-      "filename": "src/providers/4khubdad.js",
+      "filename": "providers/4khubdad.js",
       "enabled": true,
       "contentLanguage": [
         "en",
@@ -30,7 +30,7 @@
         "movie",
         "tv"
       ],
-      "filename": "src/providers/moviesdrive.js",
+      "filename": "providers/moviesdrive.js",
       "enabled": true,
       "contentLanguage": [
         "en",
@@ -48,7 +48,7 @@
         "movie",
         "tv"
       ],
-      "filename": "src/providers/vegamovies.js",
+      "filename": "providers/vegamovies.js",
       "enabled": true,
       "contentLanguage": [
         "en",
